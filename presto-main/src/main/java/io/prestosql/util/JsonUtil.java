@@ -508,7 +508,13 @@ public final class JsonUtil
             }
             else {
                 long value = TIMESTAMP.getLong(block, position);
-                jsonGenerator.writeString(printTimestampWithoutTimeZone(session.getTimeZoneKey(), value));
+
+                if (session.isLegacyTimestamp()) {
+                    jsonGenerator.writeString(printTimestampWithoutTimeZone(session.getTimeZoneKey(), value));
+                }
+                else {
+                    jsonGenerator.writeString(printTimestampWithoutTimeZone(value));
+                }
             }
         }
     }
@@ -1238,7 +1244,7 @@ public final class JsonUtil
 
     public static Optional<Map<String, Integer>> getFieldNameToIndex(List<Field> rowFields)
     {
-        if (!rowFields.get(0).getName().isPresent()) {
+        if (rowFields.get(0).getName().isEmpty()) {
             return Optional.empty();
         }
 
@@ -1270,7 +1276,7 @@ public final class JsonUtil
         }
         else {
             verify(parser.getCurrentToken() == START_OBJECT);
-            if (!fieldNameToIndex.isPresent()) {
+            if (fieldNameToIndex.isEmpty()) {
                 throw new JsonCastException("Cannot cast a JSON object to anonymous row type. Input must be a JSON array.");
             }
             boolean[] fieldWritten = new boolean[fieldAppenders.length];

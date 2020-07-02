@@ -16,6 +16,7 @@ package io.prestosql.eventlistener;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
+import io.prestosql.spi.classloader.ThreadContextClassLoader;
 import io.prestosql.spi.eventlistener.EventListener;
 import io.prestosql.spi.eventlistener.EventListenerFactory;
 import io.prestosql.spi.eventlistener.QueryCompletedEvent;
@@ -102,18 +103,25 @@ public class EventListenerManager
     private EventListener createEventListener(File configFile)
     {
         log.info("-- Loading event listener %s --", configFile);
+
         configFile = configFile.getAbsoluteFile();
         Map<String, String> properties = loadEventListenerProperties(configFile);
         String name = properties.remove(EVENT_LISTENER_NAME_PROPERTY);
         checkArgument(!isNullOrEmpty(name), "EventListener plugin configuration for %s does not contain %s", configFile, EVENT_LISTENER_NAME_PROPERTY);
+
         EventListenerFactory eventListenerFactory = eventListenerFactories.get(name);
         checkArgument(eventListenerFactory != null, "Event listener factory '%s' is not registered. Available factories: %s", name, eventListenerFactories.keySet());
-        EventListener eventListener = eventListenerFactory.create(properties);
+
+        EventListener eventListener;
+        try (ThreadContextClassLoader ignored = new ThreadContextClassLoader(eventListenerFactory.getClass().getClassLoader())) {
+            eventListener = eventListenerFactory.create(properties);
+        }
+
         log.info("-- Loaded event listener %s --", configFile);
         return eventListener;
     }
 
-    private Map<String, String> loadEventListenerProperties(File configFile)
+    private static Map<String, String> loadEventListenerProperties(File configFile)
     {
         try {
             return new HashMap<>(loadPropertiesFrom(configFile.getPath()));

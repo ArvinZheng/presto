@@ -31,8 +31,6 @@ import static io.prestosql.spi.type.BooleanType.BOOLEAN;
 import static io.prestosql.spi.type.DateType.DATE;
 import static io.prestosql.spi.type.TimeType.TIME;
 import static io.prestosql.spi.type.TimeWithTimeZoneType.TIME_WITH_TIME_ZONE;
-import static io.prestosql.spi.type.TimeZoneKey.getTimeZoneKey;
-import static io.prestosql.spi.type.TimeZoneKey.getTimeZoneKeyForOffset;
 import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
 import static io.prestosql.spi.type.TimestampWithTimeZoneType.TIMESTAMP_WITH_TIME_ZONE;
 import static io.prestosql.spi.type.VarcharType.VARCHAR;
@@ -40,6 +38,7 @@ import static io.prestosql.testing.DateTimeTestingUtils.sqlTimeOf;
 import static io.prestosql.testing.DateTimeTestingUtils.sqlTimestampOf;
 import static io.prestosql.testing.TestingSession.testSessionBuilder;
 import static io.prestosql.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
+import static io.prestosql.type.JsonType.JSON;
 import static io.prestosql.util.DateTimeZoneIndex.getDateTimeZone;
 import static org.joda.time.DateTimeZone.UTC;
 
@@ -48,10 +47,6 @@ public abstract class TestTimestampBase
 {
     protected static final TimeZoneKey TIME_ZONE_KEY = TestingSession.DEFAULT_TIME_ZONE_KEY;
     protected static final DateTimeZone DATE_TIME_ZONE = getDateTimeZone(TIME_ZONE_KEY);
-    protected static final TimeZoneKey WEIRD_TIME_ZONE_KEY = getTimeZoneKeyForOffset(7 * 60 + 9);
-    protected static final DateTimeZone WEIRD_ZONE = getDateTimeZone(WEIRD_TIME_ZONE_KEY);
-    protected static final TimeZoneKey ORAL_TIME_ZONE_KEY = getTimeZoneKey("Asia/Oral");
-    protected static final DateTimeZone ORAL_ZONE = getDateTimeZone(ORAL_TIME_ZONE_KEY);
 
     protected TestTimestampBase(boolean legacyTimestamp)
     {
@@ -216,6 +211,20 @@ public abstract class TestTimestampBase
         assertFunction("cast(TIMESTAMP '2001-1-22 03:04:05' as varchar)", VARCHAR, "2001-01-22 03:04:05.000");
         assertFunction("cast(TIMESTAMP '2001-1-22 03:04' as varchar)", VARCHAR, "2001-01-22 03:04:00.000");
         assertFunction("cast(TIMESTAMP '2001-1-22' as varchar)", VARCHAR, "2001-01-22 00:00:00.000");
+    }
+
+    @Test
+    public void testCastToJson()
+    {
+        assertFunction("cast(TIMESTAMP '2001-1-22 03:04:05.321' as json)", JSON, "\"2001-01-22 03:04:05.321\"");
+        assertFunction("cast(TIMESTAMP '2001-1-22 03:04:05' as json)", JSON, "\"2001-01-22 03:04:05.000\"");
+        assertFunction("cast(TIMESTAMP '2001-1-22 03:04' as json)", JSON, "\"2001-01-22 03:04:00.000\"");
+        assertFunction("cast(TIMESTAMP '2001-1-22' as json)", JSON, "\"2001-01-22 00:00:00.000\"");
+
+        assertFunction("cast(ARRAY[TIMESTAMP '2001-1-22 03:04:05.321'] as json)", JSON, "[\"2001-01-22 03:04:05.321\"]");
+        assertFunction("cast(ARRAY[TIMESTAMP '2001-1-22 03:04:05'] as json)", JSON, "[\"2001-01-22 03:04:05.000\"]");
+        assertFunction("cast(ARRAY[TIMESTAMP '2001-1-22 03:04'] as json)", JSON, "[\"2001-01-22 03:04:00.000\"]");
+        assertFunction("cast(ARRAY[TIMESTAMP '2001-1-22'] as json)", JSON, "[\"2001-01-22 00:00:00.000\"]");
     }
 
     @Test

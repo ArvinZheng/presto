@@ -21,7 +21,6 @@ import io.prestosql.sql.planner.plan.RowNumberNode;
 
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static io.prestosql.sql.planner.iterative.rule.Util.restrictChildOutputs;
@@ -40,7 +39,7 @@ public class PruneRowNumberColumns
     {
         // Remove unused RowNumberNode
         if (!referencedOutputs.contains(rowNumberNode.getRowNumberSymbol())) {
-            if (!rowNumberNode.getMaxRowCountPerPartition().isPresent()) {
+            if (rowNumberNode.getMaxRowCountPerPartition().isEmpty()) {
                 return Optional.of(rowNumberNode.getSource());
             }
             if (rowNumberNode.getPartitionBy().isEmpty()) {
@@ -56,7 +55,7 @@ public class PruneRowNumberColumns
                 referencedOutputs.stream()
                         .filter(symbol -> !symbol.equals(rowNumberNode.getRowNumberSymbol())),
                 rowNumberNode.getPartitionBy().stream(),
-                rowNumberNode.getHashSymbol().map(Stream::of).orElse(Stream.empty()))
+                rowNumberNode.getHashSymbol().stream())
                 .collect(toImmutableSet());
 
         return restrictChildOutputs(context.getIdAllocator(), rowNumberNode, requiredInputs);

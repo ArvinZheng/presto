@@ -46,5 +46,8 @@ public class TestFormat
 
         assertions.assertQuery("SELECT format('%d', cast(sum(totalprice) as bigint)) FROM (VALUES 20,99,15) t(totalprice)", "SELECT CAST(sum(totalprice) as VARCHAR) FROM (VALUES 20,99,15) t(totalprice)");
         assertions.assertQuery("SELECT format('%s', sum(k)) FROM (VALUES 1, 2, 3) t(k)", "VALUES CAST('6' as VARCHAR)");
+        assertions.assertQuery("SELECT format(arbitrary(s), sum(k)) FROM (VALUES ('%s', 1), ('%s', 2), ('%s', 3)) t(s, k)", "VALUES CAST('6' as VARCHAR)");
+
+        assertions.assertFails("SELECT format(s, 1) FROM (VALUES ('%s', 1)) t(s, k) GROUP BY k", "\\Qline 1:8: 'format(s, 1)' must be an aggregate expression or appear in GROUP BY clause\\E");
     }
 }

@@ -64,15 +64,14 @@ import io.prestosql.sql.planner.plan.LimitNode;
 import io.prestosql.sql.planner.plan.MarkDistinctNode;
 import io.prestosql.sql.planner.plan.OffsetNode;
 import io.prestosql.sql.planner.plan.OutputNode;
-import io.prestosql.sql.planner.plan.PlanFragmentId;
 import io.prestosql.sql.planner.plan.PlanNode;
 import io.prestosql.sql.planner.plan.PlanNodeId;
 import io.prestosql.sql.planner.plan.ProjectNode;
-import io.prestosql.sql.planner.plan.RemoteSourceNode;
 import io.prestosql.sql.planner.plan.RowNumberNode;
 import io.prestosql.sql.planner.plan.SampleNode;
 import io.prestosql.sql.planner.plan.SemiJoinNode;
 import io.prestosql.sql.planner.plan.SortNode;
+import io.prestosql.sql.planner.plan.SpatialJoinNode;
 import io.prestosql.sql.planner.plan.TableFinishNode;
 import io.prestosql.sql.planner.plan.TableScanNode;
 import io.prestosql.sql.planner.plan.TableWriterNode;
@@ -80,6 +79,7 @@ import io.prestosql.sql.planner.plan.TableWriterNode.DeleteTarget;
 import io.prestosql.sql.planner.plan.TopNNode;
 import io.prestosql.sql.planner.plan.TopNRowNumberNode;
 import io.prestosql.sql.planner.plan.UnionNode;
+import io.prestosql.sql.planner.plan.UnnestNode;
 import io.prestosql.sql.planner.plan.ValuesNode;
 import io.prestosql.sql.planner.plan.WindowNode;
 import io.prestosql.sql.planner.plan.WindowNode.Specification;
@@ -108,6 +108,7 @@ import static io.prestosql.spi.type.BigintType.BIGINT;
 import static io.prestosql.spi.type.VarbinaryType.VARBINARY;
 import static io.prestosql.sql.planner.SystemPartitioningHandle.FIXED_HASH_DISTRIBUTION;
 import static io.prestosql.sql.planner.SystemPartitioningHandle.SINGLE_DISTRIBUTION;
+import static io.prestosql.sql.planner.plan.JoinNode.Type.INNER;
 import static io.prestosql.sql.tree.BooleanLiteral.TRUE_LITERAL;
 import static io.prestosql.util.MoreLists.nElements;
 import static java.lang.String.format;
@@ -798,6 +799,25 @@ public class PlanBuilder
                 indexHashSymbol);
     }
 
+    public PlanNode spatialJoin(
+            SpatialJoinNode.Type type,
+            PlanNode left,
+            PlanNode right,
+            List<Symbol> outputSymbols,
+            Expression filter)
+    {
+        return new SpatialJoinNode(
+                idAllocator.getNextId(),
+                type,
+                left,
+                right,
+                outputSymbols,
+                filter,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty());
+    }
+
     public UnionNode union(ListMultimap<Symbol, Symbol> outputsToInputs, List<PlanNode> sources)
     {
         List<Symbol> outputs = ImmutableList.copyOf(outputsToInputs.keySet());
@@ -852,6 +872,23 @@ public class PlanBuilder
         return symbol;
     }
 
+    public UnnestNode unnest(List<Symbol> replicateSymbols, List<UnnestNode.Mapping> mappings, PlanNode source)
+    {
+        return unnest(replicateSymbols, mappings, Optional.empty(), INNER, Optional.empty(), source);
+    }
+
+    public UnnestNode unnest(List<Symbol> replicateSymbols, List<UnnestNode.Mapping> mappings, Optional<Symbol> ordinalitySymbol, JoinNode.Type type, Optional<Expression> filter, PlanNode source)
+    {
+        return new UnnestNode(
+                idAllocator.getNextId(),
+                source,
+                replicateSymbols,
+                mappings,
+                ordinalitySymbol,
+                type,
+                filter);
+    }
+
     public WindowNode window(Specification specification, Map<Symbol, WindowNode.Function> functions, PlanNode source)
     {
         return new WindowNode(
@@ -903,11 +940,6 @@ public class PlanBuilder
                 maxRowCountPerPartition,
                 false,
                 hashSymbol);
-    }
-
-    public RemoteSourceNode remoteSourceNode(List<PlanFragmentId> fragmentIds, List<Symbol> symbols, ExchangeNode.Type exchangeType)
-    {
-        return new RemoteSourceNode(idAllocator.getNextId(), fragmentIds, symbols, Optional.empty(), exchangeType);
     }
 
     public static Expression expression(String sql)

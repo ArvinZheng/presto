@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static java.lang.String.format;
-import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.requireNonNull;
 
 /**
@@ -181,14 +180,17 @@ public final class Domain
         }
 
         return new DiscreteSet(
-                values.isNone() ? unmodifiableList(new ArrayList<>()) : values.getDiscreteSet(),
+                values.isNone() ? List.of() : values.getDiscreteSet(),
                 nullAllowed);
     }
 
     public boolean overlaps(Domain other)
     {
         checkCompatibility(other);
-        return !this.intersect(other).isNone();
+        if (this.isNullAllowed() && other.isNullAllowed()) {
+            return true;
+        }
+        return values.overlaps(other.getValues());
     }
 
     public boolean contains(Domain other)

@@ -68,6 +68,7 @@ import io.prestosql.server.PluginManager;
 import io.prestosql.server.ServerMainModule;
 import io.prestosql.server.SessionPropertyDefaults;
 import io.prestosql.server.ShutdownAction;
+import io.prestosql.server.security.CertificateAuthenticatorManager;
 import io.prestosql.server.security.ServerSecurityModule;
 import io.prestosql.spi.Plugin;
 import io.prestosql.spi.QueryId;
@@ -204,7 +205,6 @@ public class TestingPrestoServer
         ImmutableMap.Builder<String, String> serverProperties = ImmutableMap.<String, String>builder()
                 .putAll(properties)
                 .put("coordinator", String.valueOf(coordinator))
-                .put("presto.version", "testversion")
                 .put("task.concurrency", "4")
                 .put("task.max-worker-threads", "4")
                 .put("exchange.client-threads", "4");
@@ -224,7 +224,7 @@ public class TestingPrestoServer
                 .add(new EventModule())
                 .add(new TraceTokenModule())
                 .add(new ServerSecurityModule())
-                .add(new ServerMainModule())
+                .add(new ServerMainModule("testversion"))
                 .add(new TestingWarningCollectorModule())
                 .add(binder -> {
                     binder.bind(String.class)
@@ -294,6 +294,7 @@ public class TestingPrestoServer
             nodePartitioningManager = injector.getInstance(NodePartitioningManager.class);
             clusterMemoryManager = injector.getInstance(ClusterMemoryManager.class);
             statsCalculator = injector.getInstance(StatsCalculator.class);
+            injector.getInstance(CertificateAuthenticatorManager.class).useDefaultAuthenticator();
         }
         else {
             dispatchManager = null;

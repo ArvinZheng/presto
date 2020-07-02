@@ -260,7 +260,7 @@ public final class StreamPropertyDerivations
 
             // Globally constant assignments
             Set<ColumnHandle> constants = new HashSet<>();
-            extractFixedValues(metadata.getTableProperties(session, node.getTable()).getPredicate())
+            extractFixedValues(layout.getPredicate())
                     .orElse(ImmutableMap.of())
                     .entrySet().stream()
                     .filter(entry -> !entry.getValue().isNull())  // TODO consider allowing nulls
@@ -698,7 +698,7 @@ public final class StreamPropertyDerivations
 
         public boolean isPartitionedOn(Iterable<Symbol> columns)
         {
-            if (!partitioningColumns.isPresent()) {
+            if (partitioningColumns.isEmpty()) {
                 return false;
             }
 
@@ -736,7 +736,7 @@ public final class StreamPropertyDerivations
                         ImmutableList.Builder<Symbol> newPartitioningColumns = ImmutableList.builder();
                         for (Symbol partitioningColumn : partitioning) {
                             Optional<Symbol> translated = translator.apply(partitioningColumn);
-                            if (!translated.isPresent()) {
+                            if (translated.isEmpty()) {
                                 return Optional.empty();
                             }
                             newPartitioningColumns.add(translated.get());

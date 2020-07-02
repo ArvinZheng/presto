@@ -2,6 +2,30 @@
 Deploying Presto
 ================
 
+Requirements
+------------
+
+Linux Operating System
+^^^^^^^^^^^^^^^^^^^^^^
+
+* 64-bit required
+* newer release preferred, especially when running on containers
+
+.. _requirements-java:
+
+Java Runtime Environment
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* 64-bit required
+* version 11 recommended (higher versions are less tested)
+* Azul Zulu recommended (most tested)
+
+Python
+^^^^^^
+
+* version 2.6.x, 2.7.x, or 3.x
+* required by the ``bin/launcher`` script only
+
 Installing Presto
 -----------------
 
@@ -188,15 +212,6 @@ These properties require some explanation:
   URI of the Presto coordinator. Replace ``example.net:8080`` to match
   the host and port of the Presto coordinator. This URI must not end
   in a slash.
-
-You may also wish to set the following properties:
-
-* ``jmx.rmiregistry.port``:
-  Specifies the port for the JMX RMI registry. JMX clients should connect to this port.
-
-* ``jmx.rmiserver.port``:
-  Specifies the port for the JMX RMI server. Presto exports many metrics,
-  that are useful for monitoring via JMX.
 
 The above configuration properties are a minimal set to help you get started.
 Please see :doc:`/admin` and :doc:`/security` for a more comprehensive list.

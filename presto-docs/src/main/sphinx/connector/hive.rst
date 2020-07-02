@@ -25,6 +25,18 @@ data warehouse. Hive is a combination of three components:
 Presto only uses the first two components: the data and the metadata.
 It does not use HiveQL or any part of Hive's execution environment.
 
+Requirements
+------------
+
+The Hive connector requires a Hive metastore service (HMS), or a compatible
+implementation of the Hive metastore, such as `AWS Glue <https://aws.amazon.com/glue/>`_.
+
+Apache Hadoop 2.x and 3.x are supported, along with derivative distributions,
+including Cloudera CDH 5 and Hortonworks Data Platform (HDP).
+
+Many distributed storage systems including HDFS, Amazon S3, Google Cloud Storage,
+Azure Storage, and S3 compatible systems are supported.
+
 Supported File Types
 --------------------
 
@@ -76,9 +88,6 @@ In Presto, these views are presented as regular, read-only tables.
 
 Configuration
 -------------
-
-The Hive connector supports Apache Hadoop 2.x and derivative distributions
-including Cloudera CDH 5 and Hortonworks Data Platform (HDP).
 
 Create ``etc/catalog/hive.properties`` with the following contents
 to mount the ``hive-hadoop2`` connector as the ``hive`` catalog,
@@ -232,64 +241,69 @@ Property Name                                      Description                  
 ``hive.s3select-pushdown.max-connections``         Maximum number of simultaneously open connections to S3 for  500
                                                    :ref:`s3selectpushdown`.
 
-``hive.file-status-cache-tables``                  Cache directory listing for specified tables.
-                                                   Examples: ``schema.table1,schema.table2`` to cache directory
-                                                   listing only for ``table1`` and ``table2``.
-                                                   ``schema1.*,schema2.*`` to cache directory listing for all
-                                                   tables in the schemas ``schema1`` and ``schema2``.
-                                                   ``*`` to cache directory listing for all tables.
+``hive.file-status-cache-tables``                  Cache directory listing for specific tables. Examples:
 
-``hive.file-status-cache-size``                    Maximum no. of file status entries cached for a path.        1,000,000
+                                                   * ``fruit.apple,fruit.orange`` to cache listings only for
+                                                     tables ``apple`` and ``orange`` in schema ``fruit``
+                                                   * ``fruit.*,vegetable.*`` to cache listings for all tables
+                                                     in schemas ``fruit`` and ``vegetable``
+                                                   * ``*`` to cache listings for all tables in all schemas
 
-``hive.file-status-cache-expire-time``             Duration of time after a directory listing is cached that it ``1m``
-                                                   should be automatically removed from cache.
+``hive.file-status-cache-size``                    Maximum total number of cached file status entries.          1,000,000
+
+``hive.file-status-cache-expire-time``             How long a cached directory listing should be considered     ``1m``
+                                                   valid.
 ================================================== ============================================================ ============
 
 Hive Thrift Metastore Configuration Properties
 ----------------------------------------------
 
-======================================================== ============================================================ ============
-Property Name                                            Description                                                  Default
-======================================================== ============================================================ ============
-``hive.metastore.uri``                                   The URI(s) of the Hive metastore to connect to using the
-                                                         Thrift protocol. If multiple URIs are provided, the first
-                                                         URI is used by default, and the rest of the URIs are
-                                                         fallback metastores. This property is required.
-                                                         Example: ``thrift://192.0.2.3:9083`` or
-                                                         ``thrift://192.0.2.3:9083,thrift://192.0.2.4:9083``
+============================================================= ============================================================ ============
+Property Name                                                 Description                                                  Default
+============================================================= ============================================================ ============
+``hive.metastore.uri``                                        The URI(s) of the Hive metastore to connect to using the
+                                                              Thrift protocol. If multiple URIs are provided, the first
+                                                              URI is used by default, and the rest of the URIs are
+                                                              fallback metastores. This property is required.
+                                                              Example: ``thrift://192.0.2.3:9083`` or
+                                                              ``thrift://192.0.2.3:9083,thrift://192.0.2.4:9083``
 
-``hive.metastore.username``                              The username Presto uses to access the Hive metastore.
+``hive.metastore.username``                                   The username Presto uses to access the Hive metastore.
 
-``hive.metastore.authentication.type``                   Hive metastore authentication type.
-                                                         Possible values are ``NONE`` or ``KERBEROS``
-                                                         (defaults to ``NONE``).
+``hive.metastore.authentication.type``                        Hive metastore authentication type.
+                                                              Possible values are ``NONE`` or ``KERBEROS``
+                                                              (defaults to ``NONE``).
 
-``hive.metastore.thrift.impersonation.enabled``          Enable Hive metastore end user impersonation.
+``hive.metastore.thrift.impersonation.enabled``               Enable Hive metastore end user impersonation.
 
-``hive.metastore.thrift.client.ssl.enabled``             Use SSL when connecting to metastore.                        ``false``
+``hive.metastore.thrift.delegation-token.cache-ttl``          Time to live delegation token cache for metastore.           ``1h``
 
-``hive.metastore.thrift.client.ssl.key``                 Path to PEM private key and client certificate (key store).
+``hive.metastore.thrift.delegation-token.cache-maximum-size`` Delegation token cache maximum size.                         1,000
 
-``hive.metastore.thrift.client.ssl.key-password``        Password for the PEM private key.
+``hive.metastore.thrift.client.ssl.enabled``                  Use SSL when connecting to metastore.                        ``false``
 
-``hive.metastore.thrift.client.ssl.trust-certificate``   Path to the PEM server certificate chain (trust store).
-                                                         Required when SSL is enabled.
+``hive.metastore.thrift.client.ssl.key``                      Path to PEM private key and client certificate (key store).
 
-``hive.metastore.service.principal``                     The Kerberos principal of the Hive metastore service.
+``hive.metastore.thrift.client.ssl.key-password``             Password for the PEM private key.
 
-``hive.metastore.client.principal``                      The Kerberos principal that Presto uses when connecting
-                                                         to the Hive metastore service.
+``hive.metastore.thrift.client.ssl.trust-certificate``        Path to the PEM server certificate chain (trust store).
+                                                              Required when SSL is enabled.
 
-``hive.metastore.client.keytab``                         Hive metastore client keytab location.
+``hive.metastore.service.principal``                          The Kerberos principal of the Hive metastore service.
 
-``hive.metastore-cache-ttl``                             Time to live Hive metadata cache.                            ``0s``
+``hive.metastore.client.principal``                           The Kerberos principal that Presto uses when connecting
+                                                              to the Hive metastore service.
 
-``hive.metastore-refresh-interval``                      How often to refresh the Hive metastore cache.
+``hive.metastore.client.keytab``                              Hive metastore client keytab location.
 
-``hive.metastore-cache-maximum-size``                    Hive metastore cache maximum size.                           10,000
+``hive.metastore-cache-ttl``                                  Time to live Hive metadata cache.                            ``0s``
 
-``hive.metastore-refresh-max-threads``                   Maximum number of threads to refresh Hive metastore cache.   100
-======================================================== ============================================================ ============
+``hive.metastore-refresh-interval``                           How often to refresh the Hive metastore cache.
+
+``hive.metastore-cache-maximum-size``                         Hive metastore cache maximum size.                           10,000
+
+``hive.metastore-refresh-max-threads``                        Maximum number of threads to refresh Hive metastore cache.   100
+============================================================= ============================================================ ============
 
 AWS Glue Catalog Configuration Properties
 -----------------------------------------

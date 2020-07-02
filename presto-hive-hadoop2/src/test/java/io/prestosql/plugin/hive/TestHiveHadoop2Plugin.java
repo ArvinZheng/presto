@@ -18,28 +18,51 @@ import com.google.common.collect.Iterables;
 import io.prestosql.spi.Plugin;
 import io.prestosql.spi.connector.ConnectorFactory;
 import io.prestosql.testing.TestingConnectorContext;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.nio.file.Path;
+
+import static com.google.common.io.MoreFiles.deleteRecursively;
+import static com.google.common.io.RecursiveDeleteOption.ALLOW_INSECURE;
+import static java.nio.file.Files.createTempDirectory;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TestHiveHadoop2Plugin
 {
+    private Path tempDirectory;
+
+    @BeforeClass
+    public void setup()
+            throws IOException
+    {
+        tempDirectory = createTempDirectory(getClass().getSimpleName());
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void tearDown()
+            throws IOException
+    {
+        deleteRecursively(tempDirectory, ALLOW_INSECURE);
+    }
+
     @Test
     public void testS3SecurityMappingAndHiveCachingMutuallyExclusive()
     {
         Plugin plugin = new HiveHadoop2Plugin();
         ConnectorFactory connectorFactory = Iterables.getOnlyElement(plugin.getConnectorFactories());
 
-        assertThatThrownBy(() -> {
-            connectorFactory.create(
-                    "test",
-                    ImmutableMap.<String, String>builder()
-                            .put("hive.s3.security-mapping.config-file", "/tmp/blah.txt")
-                            .put("hive.cache.enabled", "true")
-                            .build(),
-                    new TestingConnectorContext())
-                    .shutdown();
-        }).hasMessageContaining("S3 security mapping is not compatible with Hive caching");
+        assertThatThrownBy(() -> connectorFactory.create(
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.s3.security-mapping.config-file", "/tmp/blah.txt")
+                        .put("hive.cache.enabled", "true")
+                        .build(),
+                new TestingConnectorContext())
+                .shutdown())
+                .hasMessageContaining("S3 security mapping is not compatible with Hive caching");
     }
 
     @Test
@@ -48,15 +71,49 @@ public class TestHiveHadoop2Plugin
         Plugin plugin = new HiveHadoop2Plugin();
         ConnectorFactory connectorFactory = Iterables.getOnlyElement(plugin.getConnectorFactories());
 
-        assertThatThrownBy(() -> {
-            connectorFactory.create(
-                    "test",
-                    ImmutableMap.<String, String>builder()
-                            .put("hive.gcs.use-access-token", "true")
-                            .put("hive.cache.enabled", "true")
-                            .build(),
-                    new TestingConnectorContext())
-                    .shutdown();
-        }).hasMessageContaining("Use of GCS access token is not compatible with Hive caching");
+        assertThatThrownBy(() -> connectorFactory.create(
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.gcs.use-access-token", "true")
+                        .put("hive.cache.enabled", "true")
+                        .build(),
+                new TestingConnectorContext())
+                .shutdown())
+                .hasMessageContaining("Use of GCS access token is not compatible with Hive caching");
+    }
+
+    @Test
+    public void testRubixCache()
+    {
+        Plugin plugin = new HiveHadoop2Plugin();
+        ConnectorFactory connectorFactory = Iterables.getOnlyElement(plugin.getConnectorFactories());
+
+        connectorFactory.create(
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.cache.enabled", "true")
+                        .put("hive.metastore.uri", "thrift://foo:1234")
+                        .put("hive.cache.location", tempDirectory.toString())
+                        .build(),
+                new TestingConnectorContext())
+                .shutdown();
+    }
+
+    @Test
+    public void testRubixCacheWithNonExistingCacheDirectory()
+    {
+        Plugin plugin = new HiveHadoop2Plugin();
+        ConnectorFactory connectorFactory = Iterables.getOnlyElement(plugin.getConnectorFactories());
+
+        assertThatThrownBy(() -> connectorFactory.create(
+                "test",
+                ImmutableMap.<String, String>builder()
+                        .put("hive.cache.enabled", "true")
+                        .put("hive.metastore.uri", "thrift://foo:1234")
+                        .put("hive.cache.location", "/tmp/non/existing/directory")
+                        .build(),
+                new TestingConnectorContext())
+                .shutdown())
+                .hasRootCauseMessage("None of the cache parent directories exists");
     }
 }

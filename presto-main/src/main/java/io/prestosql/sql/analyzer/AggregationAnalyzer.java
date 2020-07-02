@@ -319,7 +319,7 @@ class AggregationAnalyzer
         protected Boolean visitFunctionCall(FunctionCall node, Void context)
         {
             if (metadata.isAggregationFunction(node.getName())) {
-                if (!node.getWindow().isPresent()) {
+                if (node.getWindow().isEmpty()) {
                     List<FunctionCall> aggregateFunctions = extractAggregateFunctions(node.getArguments(), metadata);
                     List<FunctionCall> windowFunctions = extractWindowFunctions(node.getArguments());
 
@@ -521,7 +521,7 @@ class AggregationAnalyzer
                 Field field = sourceScope.getRelationType().getFieldByIndex(node.getFieldIndex());
 
                 String column;
-                if (!field.getName().isPresent()) {
+                if (field.getName().isEmpty()) {
                     column = Integer.toString(node.getFieldIndex() + 1);
                 }
                 else if (field.getRelationAlias().isPresent()) {
@@ -597,7 +597,7 @@ class AggregationAnalyzer
                 }
             }
 
-            return !node.getDefaultValue().isPresent() || process(node.getDefaultValue().get(), context);
+            return node.getDefaultValue().isEmpty() || process(node.getDefaultValue().get(), context);
         }
 
         @Override
@@ -652,7 +652,7 @@ class AggregationAnalyzer
         public Boolean process(Node node, @Nullable Void context)
         {
             if (expressions.stream().anyMatch(node::equals)
-                    && (!orderByScope.isPresent() || !hasOrderByReferencesToOutputColumns(node))
+                    && (orderByScope.isEmpty() || !hasOrderByReferencesToOutputColumns(node))
                     && !hasFreeReferencesToLambdaArgument(node, analysis)) {
                 return true;
             }

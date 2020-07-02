@@ -162,7 +162,9 @@ import static io.prestosql.type.IntervalDayTimeType.INTERVAL_DAY_TIME;
 import static io.prestosql.type.IntervalYearMonthType.INTERVAL_YEAR_MONTH;
 import static io.prestosql.type.JsonType.JSON;
 import static io.prestosql.type.UnknownType.UNKNOWN;
-import static io.prestosql.util.DateTimeUtils.parseTimestampLiteral;
+import static io.prestosql.util.DateTimeUtils.parseLegacyTimestamp;
+import static io.prestosql.util.DateTimeUtils.parseTimestamp;
+import static io.prestosql.util.DateTimeUtils.parseTimestampWithTimeZone;
 import static io.prestosql.util.DateTimeUtils.timeHasTimeZone;
 import static io.prestosql.util.DateTimeUtils.timestampHasTimeZone;
 import static java.lang.Math.toIntExact;
@@ -479,7 +481,7 @@ public class ExpressionAnalyzer
             }
 
             if (rowFieldType == null) {
-                throw missingAttributeException(node);
+                throw missingAttributeException(node, qualifiedName);
             }
 
             return setExpressionType(node, rowFieldType);
@@ -531,7 +533,7 @@ public class ExpressionAnalyzer
             Type firstType = process(node.getFirst(), context);
             Type secondType = process(node.getSecond(), context);
 
-            if (!typeCoercion.getCommonSuperType(firstType, secondType).isPresent()) {
+            if (typeCoercion.getCommonSuperType(firstType, secondType).isEmpty()) {
                 throw semanticException(TYPE_MISMATCH, node, "Types are not comparable with NULLIF: %s vs %s", firstType, secondType);
             }
 
@@ -607,7 +609,7 @@ public class ExpressionAnalyzer
 
                 Optional<Type> operandCommonType = typeCoercion.getCommonSuperType(commonType, whenOperandType);
 
-                if (!operandCommonType.isPresent()) {
+                if (operandCommonType.isEmpty()) {
                     throw semanticException(TYPE_MISMATCH, whenOperand, "CASE operand type does not match WHEN clause operand type: %s vs %s", operandType, whenOperandType);
                 }
 
@@ -824,25 +826,26 @@ public class ExpressionAnalyzer
         @Override
         protected Type visitTimestampLiteral(TimestampLiteral node, StackableAstVisitorContext<Context> context)
         {
+            Type type;
             try {
-                if (SystemSessionProperties.isLegacyTimestamp(session)) {
-                    parseTimestampLiteral(session.getTimeZoneKey(), node.getValue());
+                if (timestampHasTimeZone(node.getValue())) {
+                    type = TIMESTAMP_WITH_TIME_ZONE;
+                    parseTimestampWithTimeZone(node.getValue());
                 }
                 else {
-                    parseTimestampLiteral(node.getValue());
+                    type = TIMESTAMP;
+                    if (SystemSessionProperties.isLegacyTimestamp(session)) {
+                        parseLegacyTimestamp(session.getTimeZoneKey(), node.getValue());
+                    }
+                    else {
+                        parseTimestamp(node.getValue());
+                    }
                 }
             }
             catch (Exception e) {
                 throw semanticException(INVALID_LITERAL, node, "'%s' is not a valid timestamp literal", node.getValue());
             }
 
-            Type type;
-            if (timestampHasTimeZone(node.getValue())) {
-                type = TIMESTAMP_WITH_TIME_ZONE;
-            }
-            else {
-                type = TIMESTAMP;
-            }
             return setExpressionType(node, type);
         }
 
@@ -1452,7 +1455,7 @@ public class ExpressionAnalyzer
             Type superType = UNKNOWN;
             for (Expression expression : expressions) {
                 Optional<Type> newSuperType = typeCoercion.getCommonSuperType(superType, process(expression, context));
-                if (!newSuperType.isPresent()) {
+                if (newSuperType.isEmpty()) {
                     throw semanticException(TYPE_MISMATCH, expression, message, superType);
                 }
                 superType = newSuperType.get();
@@ -1582,7 +1585,6 @@ public class ExpressionAnalyzer
                 analyzer.getColumnReferences(),
                 analyzer.getTypeOnlyCoercions(),
                 analyzer.getQuantifiedComparisons(),
-                analyzer.getLambdaArgumentReferences(),
                 analyzer.getWindowFunctions());
     }
 
@@ -1625,7 +1627,6 @@ public class ExpressionAnalyzer
                 analyzer.getColumnReferences(),
                 analyzer.getTypeOnlyCoercions(),
                 analyzer.getQuantifiedComparisons(),
-                analyzer.getLambdaArgumentReferences(),
                 analyzer.getWindowFunctions());
     }
 
