@@ -75,7 +75,7 @@ public class StructColumnReader
 
     private boolean rowGroupOpen;
 
-    StructColumnReader(Type type, OrcColumn column, OrcReader.ProjectedLayout readLayout, AggregatedMemoryContext systemMemoryContext, OrcBlockFactory blockFactory)
+    StructColumnReader(Type type, OrcColumn column, OrcReader.ProjectedLayout readLayout, AggregatedMemoryContext systemMemoryContext, OrcBlockFactory blockFactory, boolean useOrcColumnNames)
             throws OrcCorruptionException
     {
         requireNonNull(type, "type is null");
@@ -90,18 +90,26 @@ public class StructColumnReader
 
         ImmutableList.Builder<String> fieldNames = ImmutableList.builder();
         ImmutableMap.Builder<String, ColumnReader> structFields = ImmutableMap.builder();
-        for (Field field : this.type.getFields()) {
+        ImmutableList<Field> fields = ImmutableList.copyOf(this.type.getFields().iterator());
+        for (int i = 0; i < fields.size(); i++) {
+            Field field = fields.get(i);
             String fieldName = field.getName()
                     .orElseThrow(() -> new IllegalArgumentException("ROW type does not have field names declared: " + type))
                     .toLowerCase(Locale.ENGLISH);
             fieldNames.add(fieldName);
 
-            OrcColumn fieldStream = nestedColumns.get(fieldName);
+            OrcColumn fieldStream;
+            if (useOrcColumnNames) {
+                fieldStream = nestedColumns.get(fieldName);
+            }
+            else {
+                fieldStream = column.getNestedColumns().get(i);
+            }
 
             if (fieldStream != null) {
                 OrcReader.ProjectedLayout fieldLayout = readLayout.getFieldLayout(fieldName);
                 if (fieldLayout != null) {
-                    structFields.put(fieldName, createColumnReader(field.getType(), fieldStream, fieldLayout, systemMemoryContext, blockFactory));
+                    structFields.put(fieldName, createColumnReader(field.getType(), fieldStream, fieldLayout, systemMemoryContext, blockFactory, useOrcColumnNames));
                 }
             }
         }

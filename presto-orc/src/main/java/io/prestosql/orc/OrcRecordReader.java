@@ -117,6 +117,8 @@ public class OrcRecordReader
     private final Optional<StatisticsValidation> stripeStatisticsValidation;
     private final Optional<StatisticsValidation> fileStatisticsValidation;
 
+    private final boolean useOrcColumnNames;
+
     public OrcRecordReader(
             List<OrcColumn> readColumns,
             List<Type> readTypes,
@@ -140,7 +142,8 @@ public class OrcRecordReader
             AggregatedMemoryContext systemMemoryUsage,
             Optional<OrcWriteValidation> writeValidation,
             int initialBatchSize,
-            Function<Exception, RuntimeException> exceptionTransform)
+            Function<Exception, RuntimeException> exceptionTransform,
+            boolean useOrcColumnNames)
             throws OrcCorruptionException
     {
         requireNonNull(readColumns, "readColumns is null");
@@ -238,6 +241,8 @@ public class OrcRecordReader
         currentBytesPerCell = new long[columnReaders.length];
         maxBytesPerCell = new long[columnReaders.length];
         nextBatchSize = initialBatchSize;
+
+        this.useOrcColumnNames = useOrcColumnNames;
     }
 
     private static boolean splitContainsStripe(long splitOffset, long splitLength, StripeInformation stripe)
@@ -556,7 +561,7 @@ public class OrcRecordReader
             Type readType = readTypes.get(columnIndex);
             OrcColumn column = columns.get(columnIndex);
             OrcReader.ProjectedLayout projectedLayout = readLayouts.get(columnIndex);
-            columnReaders[columnIndex] = createColumnReader(readType, column, projectedLayout, systemMemoryContext, blockFactory);
+            columnReaders[columnIndex] = createColumnReader(readType, column, projectedLayout, systemMemoryContext, blockFactory, useOrcColumnNames);
         }
         return columnReaders;
     }

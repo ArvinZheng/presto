@@ -287,6 +287,34 @@ public class OrcReader
             Function<Exception, RuntimeException> exceptionTransform)
             throws OrcCorruptionException
     {
+        return createRecordReader(
+                readColumns,
+                readTypes,
+                readLayouts,
+                predicate,
+                offset,
+                length,
+                hiveStorageTimeZone,
+                systemMemoryUsage,
+                initialBatchSize,
+                exceptionTransform,
+                false);
+    }
+
+    public OrcRecordReader createRecordReader(
+            List<OrcColumn> readColumns,
+            List<Type> readTypes,
+            List<ProjectedLayout> readLayouts,
+            OrcPredicate predicate,
+            long offset,
+            long length,
+            DateTimeZone hiveStorageTimeZone,
+            AggregatedMemoryContext systemMemoryUsage,
+            int initialBatchSize,
+            Function<Exception, RuntimeException> exceptionTransform,
+            boolean useOrcColumnNames)
+            throws OrcCorruptionException
+    {
         return new OrcRecordReader(
                 requireNonNull(readColumns, "readColumns is null"),
                 requireNonNull(readTypes, "readTypes is null"),
@@ -310,7 +338,8 @@ public class OrcReader
                 systemMemoryUsage,
                 writeValidation,
                 initialBatchSize,
-                exceptionTransform);
+                exceptionTransform,
+                useOrcColumnNames);
     }
 
     private static OrcDataSource wrapWithCacheIfTiny(OrcDataSource dataSource, DataSize maxCacheSize)

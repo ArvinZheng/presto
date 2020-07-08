@@ -32,6 +32,24 @@ public final class ColumnReaders
             OrcBlockFactory blockFactory)
             throws OrcCorruptionException
     {
+        return createColumnReader(
+                type,
+                column,
+                projectedLayout,
+                systemMemoryContext,
+                blockFactory,
+                false);
+    }
+
+    public static ColumnReader createColumnReader(
+            Type type,
+            OrcColumn column,
+            OrcReader.ProjectedLayout projectedLayout,
+            AggregatedMemoryContext systemMemoryContext,
+            OrcBlockFactory blockFactory,
+            boolean useOrcColumnNames)
+            throws OrcCorruptionException
+    {
         switch (column.getColumnType()) {
             case BOOLEAN:
                 return new BooleanColumnReader(type, column, systemMemoryContext.newLocalMemoryContext(ColumnReaders.class.getSimpleName()));
@@ -56,7 +74,7 @@ public final class ColumnReaders
             case LIST:
                 return new ListColumnReader(type, column, systemMemoryContext, blockFactory);
             case STRUCT:
-                return new StructColumnReader(type, column, projectedLayout, systemMemoryContext, blockFactory);
+                return new StructColumnReader(type, column, projectedLayout, systemMemoryContext, blockFactory, useOrcColumnNames);
             case MAP:
                 return new MapColumnReader(type, column, systemMemoryContext, blockFactory);
             case DECIMAL:
